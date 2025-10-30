@@ -1,7 +1,7 @@
 import app from './app';
 import sequelize from './config/database.config';
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
@@ -12,19 +12,18 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connected');
     
-    // Create tables
-    console.log('🔄 Creating tables...');
-    await sequelize.sync({ force: true }); // Use force:true to drop and recreate
-    console.log('✅ All 30 tables created successfully!');
+    // PRODUCTION SAFE SYNC - Never drop data
+    console.log('🔄 Syncing database (safe mode)...');
+    await sequelize.sync({ alter: false }); // Don't alter tables in production
+    console.log('✅ Database ready - data is safe!');
     
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🎉 BACKEND READY!`);
+      console.log(`\n🎉 BACKEND DEPLOYED SUCCESSFULLY!`);
       console.log(`📍 Port: ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🔗 API: http://localhost:${PORT}/api/health`);
-      console.log(`📊 Database: PostgreSQL with 30 tables`);
-      console.log(`\n💡 Next: Test the API and start building features!`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Database: PostgreSQL - Data Persists`);
+      console.log(`\n🚀 API is ready for frontend team!`);
     });
 
   } catch (error) {

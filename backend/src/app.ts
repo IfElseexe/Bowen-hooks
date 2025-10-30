@@ -18,7 +18,14 @@ const app = express();
 app.use(helmet());
 app.use(compression());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+   origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:4200',
+    'http://localhost:5173', // Vite
+    'http://localhost:5174', // Vite alternate
+    'https://your-frontend-app.vercel.app' // Future frontend
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
