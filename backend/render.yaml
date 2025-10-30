@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bowen-hooks-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bowen-hooks-db
+          property: connectionString
+
+databases:
+  - name: bowen-hooks-db
+    plan: free
+    databaseName: bowenhooks
+    user: bowenhooks_user
