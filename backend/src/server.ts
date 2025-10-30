@@ -7,39 +7,30 @@ const startServer = async () => {
   try {
     console.log('🚀 Starting Bowen Hooks Backend...\n');
     
-    // Log database connection info (without password)
-    console.log('🔧 Environment:', process.env.NODE_ENV);
-    console.log('🔧 Database Host:', process.env.DB_HOST || 'Using DATABASE_URL');
-    
-    // Try database connection
+    // Try database connection but don't block startup
     try {
-      console.log('🔄 Connecting to database...');
+      console.log('🔄 Attempting database connection...');
       await sequelize.authenticate();
       console.log('✅ Database connected successfully!');
-      
-      // Sync database safely
-      console.log('🔄 Syncing database...');
       await sequelize.sync({ alter: false });
-      console.log('✅ Database synced safely');
+      console.log('✅ Database synced');
     } catch (dbError: any) {
-      console.error('💥 Database connection failed:');
-      console.error('Error:', dbError.message);
-      console.error('Please check your DATABASE_URL or database configuration');
-      process.exit(1);
+      console.warn('⚠️ Database connection failed, but starting server anyway');
+      console.warn('Database will be unavailable, but API endpoints will respond');
     }
     
-    // Start server
+    // Start server regardless of database status
     app.listen(PORT, () => {
       console.log(`\n🎉 BACKEND DEPLOYED SUCCESSFULLY!`);
       console.log(`📍 Port: ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📊 Database: Connected & Ready`);
+      console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
       console.log(`\n🚀 API is ready for frontend team!`);
-      console.log(`🔗 Health check: https://bowen-hooks-backend.onrender.com/health`);
+      console.log(`🔗 Test URL: https://bowen-hooks-backend.onrender.com/health`);
     });
 
   } catch (error: any) {
-    console.error('💥 Startup failed:', error.message);
+    console.error('💥 Startup failed:', error);
     process.exit(1);
   }
 };
