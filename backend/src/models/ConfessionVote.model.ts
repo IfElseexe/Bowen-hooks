@@ -5,22 +5,27 @@ import {
   DataType,
   ForeignKey,
   BelongsTo,
-  Default,
-  AllowNull
+  AllowNull,
+  Unique
 } from 'sequelize-typescript';
 import User from './User.model';
 import Confession from './Confession.model';
 
+export enum VoteType {
+  UPVOTE = 'upvote',
+  DOWNVOTE = 'downvote'
+}
+
 @Table({
-  tableName: 'confession_comments',
+  tableName: 'confession_votes',
   timestamps: true,
   underscored: true
 })
-class ConfessionComment extends Model {
-  @Default(DataType.UUIDV4)
+class ConfessionVote extends Model {
   @Column({
     type: DataType.UUID,
-    primaryKey: true
+    primaryKey: true,
+    defaultValue: DataType.UUIDV4
   })
   id!: string;
 
@@ -35,16 +40,10 @@ class ConfessionComment extends Model {
   user_id!: string;
 
   @AllowNull(false)
-  @Column(DataType.TEXT)
-  content!: string;
-
-  @Default(0)
-  @Column(DataType.INTEGER)
-  upvotes!: number;
-
-  @Default(false)
-  @Column(DataType.BOOLEAN)
-  is_reported!: boolean;
+  @Column({
+    type: DataType.ENUM(...Object.values(VoteType))
+  })
+  vote_type!: VoteType;
 
   // Relationships
   @BelongsTo(() => Confession)
@@ -54,16 +53,13 @@ class ConfessionComment extends Model {
   user!: User;
 
   // Instance methods
-  async incrementUpvotes(): Promise<void> {
-    this.upvotes += 1;
-    await this.save();
+  isUpvote(): boolean {
+    return this.vote_type === VoteType.UPVOTE;
   }
 
-  toJSON() {
-    const values = { ...this.get() };
-    // You might want to anonymize user info for comments
-    return values;
+  isDownvote(): boolean {
+    return this.vote_type === VoteType.DOWNVOTE;
   }
 }
 
-export default ConfessionComment;
+export default ConfessionVote;

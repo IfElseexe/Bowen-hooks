@@ -1,83 +1,57 @@
 import { Sequelize } from 'sequelize-typescript';
-import path from 'path';
-import logger from '../utils/logger';
+import User from '../models/User.model';
+import Profile from '../models/Profile.model';
+import Photo from '../models/Photo.model';
+import Match from '../models/Match.model';
+import Message from '../models/Message.model';
+import BombMessage from '../models/BombMessage.model';
+import VoiceNote from '../models/VoiceNote.model';
+import Location from '../models/Location.model';
+import HotZone from '../models/HotZone.model';
+import SpotDrop from '../models/SpotDrop.model';
+import VibeStatus from '../models/VibeStatus.model';
+import Event from '../models/Event.model';
+import EventAttendee from '../models/EventAttendee.model';
+import Confession from '../models/Confession.model';
+import ConfessionComment from '../models/ConfessionComment.model';
+import ConfessionVote from '../models/ConfessionVote.model';
+import RizzScore from '../models/RizzScore.model';
+import Badge from '../models/Badge.model';
+import UserBadge from '../models/UserBadge.model';
+import SparkSession from '../models/SparkSession.model';
+import PhotoChallenge from '../models/PhotoChallenge.model';
+import ChallengeSubmission from '../models/ChallengeSubmission.model';
+import ChallengeVote from '../models/ChallengeVote.model';
+import TimeCapsule from '../models/TimeCapsule.model';
+import Block from '../models/Block.model';
+import Report from '../models/Report.model';
+import Notification from '../models/Notification.model';
+import LoginStreak from '../models/LoginStreak.model';
+import Settings from '../models/Settings.model';
+import Like from '../models/Like.model';
 
 const sequelize = new Sequelize({
-  dialect: 'postgres',
+  database: process.env.DB_NAME || 'bowen_hooks_db',
+  username: process.env.DB_USER || 'bowen_user',
+  password: process.env.DB_PASS || 'bowen123',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'bowen_hooks_db',
-  username: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '',
-  
-  // Connection pool configuration
+  dialect: 'postgres',
+  models: [
+    User, Profile, Photo, Match, Message, BombMessage, VoiceNote,
+    Location, HotZone, SpotDrop, VibeStatus, Event, EventAttendee,
+    Confession, ConfessionComment, ConfessionVote, RizzScore, Badge,
+    UserBadge, SparkSession, PhotoChallenge, ChallengeSubmission,
+    ChallengeVote, TimeCapsule, Block, Report, Notification,
+    LoginStreak, Settings, Like
+  ],
+  logging: console.log,
   pool: {
-    max: parseInt(process.env.DB_POOL_MAX || '5'),
-    min: parseInt(process.env.DB_POOL_MIN || '0'),
-    acquire: parseInt(process.env.DB_POOL_ACQUIRE || '30000'),
-    idle: parseInt(process.env.DB_POOL_IDLE || '10000')
-  },
-
-  // Model loading
-  models: [path.join(__dirname, '../models')],
-
-  // Logging
-  logging: process.env.NODE_ENV === 'development' 
-    ? (msg) => logger.debug(msg)
-    : false,
-
-  // Timezone
-  timezone: '+01:00', // WAT (West Africa Time)
-
-  // Other options
-  define: {
-    timestamps: true,
-    underscored: true,
-    freezeTableName: true
-  },
-
-  // Query options
-  dialectOptions: {
-    ssl: process.env.NODE_ENV === 'production' ? {
-      require: true,
-      rejectUnauthorized: false
-    } : false
+    max: 20,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
   }
 });
 
-// Test database connection
-export const testConnection = async (): Promise<boolean> => {
-  try {
-    await sequelize.authenticate();
-    logger.info('✅ Database connection has been established successfully.');
-    return true;
-  } catch (error) {
-    logger.error('❌ Unable to connect to the database:', error);
-    return false;
-  }
-};
-
-// Sync database (for development only)
-export const syncDatabase = async (options: { force?: boolean; alter?: boolean } = {}): Promise<void> => {
-  try {
-    await sequelize.sync(options);
-    logger.info('✅ Database synchronized successfully');
-  } catch (error) {
-    logger.error('❌ Error synchronizing database:', error);
-    throw error;
-  }
-};
-
-// Close database connection
-export const closeConnection = async (): Promise<void> => {
-  try {
-    await sequelize.close();
-    logger.info('👋 Database connection closed');
-  } catch (error) {
-    logger.error('❌ Error closing database connection:', error);
-    throw error;
-  }
-};
-
-export { sequelize };
 export default sequelize;

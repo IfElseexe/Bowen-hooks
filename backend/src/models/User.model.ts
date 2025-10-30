@@ -6,17 +6,13 @@ import {
   BeforeCreate,
   BeforeUpdate,
   HasOne,
-  HasMany,
   Default,
   Unique,
   AllowNull,
   Index
 } from 'sequelize-typescript';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import Profile from './Profile.model';
-import Match from './Match.model';
-import Message from './Message.model';
-import Location from './Location.model';
 
 export enum UserRole {
   USER = 'user',
@@ -27,7 +23,7 @@ export enum UserRole {
 @Table({
   tableName: 'users',
   timestamps: true,
-  paranoid: true, // Soft deletes
+  paranoid: true,
   underscored: true
 })
 class User extends Model {
@@ -114,15 +110,12 @@ class User extends Model {
   @Column(DataType.DATE)
   password_reset_expires?: Date;
 
+  // Virtual field for plain password (not stored in DB)
+  password?: string;
+
   // Relationships
   @HasOne(() => Profile)
   profile!: Profile;
-
-  @HasMany(() => Location)
-  locations!: Location[];
-
-  // Virtual field - don't store password in plain text
-  password?: string;
 
   // Instance methods
   async comparePassword(candidatePassword: string): Promise<boolean> {
@@ -136,7 +129,6 @@ class User extends Model {
       return true;
     }
     
-    // Unlock account if lock period expired
     if (this.locked_until && this.locked_until <= new Date()) {
       this.account_locked = false;
       this.locked_until = undefined;
@@ -152,7 +144,7 @@ class User extends Model {
     this.failed_login_attempts += 1;
     
     const maxAttempts = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5');
-    const lockDuration = parseInt(process.env.ACCOUNT_LOCKOUT_DURATION || '1800000'); // 30 mins
+    const lockDuration = parseInt(process.env.ACCOUNT_LOCKOUT_DURATION || '1800000');
     
     if (this.failed_login_attempts >= maxAttempts) {
       this.account_locked = true;
@@ -171,7 +163,6 @@ class User extends Model {
 
   toJSON() {
     const values = { ...this.get() };
-    // Remove sensitive fields
     delete values.password_hash;
     delete values.password;
     delete values.verification_token;
@@ -179,21 +170,24 @@ class User extends Model {
     return values;
   }
 
-  // Hooks
+  // FIXED: Hooks must be static methods
   @BeforeCreate
-  @BeforeUpdate
-  static async hashPassword(user: User) {
-    if (user.password) {
+  static async hashPassword(instance: User) {
+    if ((instance as any).password) {
       const salt = await bcrypt.genSalt(10);
-      user.password_hash = await bcrypt.hash(user.password, salt);
-      user.password = undefined; // Clear password field
+      instance.password_hash = await bcrypt.hash((instance as any).password, salt);
+      // Clear the plain password
+      (instance as any).password = undefined;
     }
   }
 
-  @BeforeCreate
-  static setDefaults(user: User) {
-    if (!user.id) {
-      user.id = DataType.UUIDV4.toString();
+  @BeforeUpdate
+  static async hashPasswordOnUpdate(instance: User) {
+    if (instance.changed('password') && (instance as any).password) {
+      const salt = await bcrypt.genSalt(10);
+      instance.password_hash = await bcrypt.hash((instance as any).password, salt);
+      // Clear the plain password
+      (instance as any).password = undefined;
     }
   }
 }

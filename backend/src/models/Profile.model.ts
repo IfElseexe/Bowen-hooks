@@ -54,7 +54,7 @@ class Profile extends Model {
   @ForeignKey(() => User)
   @AllowNull(false)
   @Column(DataType.UUID)
-  user_id!: string;
+  user_id!: string;  // <- Only ONE definition here
 
   @AllowNull(false)
   @Column(DataType.STRING(100))
@@ -148,7 +148,7 @@ class Profile extends Model {
     }
     return this.first_name || '';
   }
-
+   
   // Relationships
   @BelongsTo(() => User)
   user!: User;

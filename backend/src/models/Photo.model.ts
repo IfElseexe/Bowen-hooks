@@ -6,10 +6,10 @@ import {
   ForeignKey,
   BelongsTo,
   Default,
-  AllowNull,
-  BeforeCreate
+  AllowNull
 } from 'sequelize-typescript';
 import User from './User.model';
+import Profile from './Profile.model';
 
 @Table({
   tableName: 'photos',
@@ -28,6 +28,13 @@ class Photo extends Model {
   @AllowNull(false)
   @Column(DataType.UUID)
   user_id!: string;
+
+  @ForeignKey(() => Profile)
+@Column(DataType.UUID)
+profile_id!: string;
+
+@BelongsTo(() => Profile)
+profile!: Profile;
 
   @AllowNull(false)
   @Column(DataType.TEXT)
@@ -55,7 +62,7 @@ class Photo extends Model {
   @Column(DataType.STRING(255))
   caption?: string;
 
-  // Relationships
+  // Relationships - REMOVE the problematic Profile relationship
   @BelongsTo(() => User)
   user!: User;
 

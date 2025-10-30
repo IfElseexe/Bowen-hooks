@@ -1,96 +1,93 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import compression from 'compression';
 import morgan from 'morgan';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import path from 'path';
+import dotenv from 'dotenv';
 
 // Import routes
-import routes from './routes';
+import authRoutes from './routes/auth.routes';
 
-// Import middleware
-import { errorHandler } from './middleware/error.middleware';
-import { rateLimiter } from './middleware/rateLimit.middleware';
+// Load environment variables
+dotenv.config();
 
-// Import logger
-import logger from './utils/logger';
+const app = express();
 
-const app: Application = express();
-
-// Security Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
-}));
-
-// CORS Configuration
-const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:4200'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
-
-// Body Parser Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Cookie Parser
-app.use(cookieParser(process.env.COOKIE_SECRET));
-
-// Compression
+// Middleware
+app.use(helmet());
 app.use(compression());
-
-// Morgan Logging (HTTP request logger)
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined', {
-    stream: {
-      write: (message: string) => logger.info(message.trim())
-    }
-  }));
-}
-
-// Rate Limiting
-app.use(rateLimiter);
-
-// Static Files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Health Check Endpoint
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Bowen Hooks API is running! 🔥',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: process.env.API_VERSION
-  });
-});
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+app.use(morgan('combined'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // API Routes
-app.use(`/api/${process.env.API_VERSION}`, routes);
+app.use('/api/v1/auth', authRoutes);
 
-// Welcome Route
-app.get('/', (req: Request, res: Response) => {
+// Basic health check route
+app.get('/api/health', (req: express.Request, res: express.Response) => {
   res.status(200).json({
-    message: 'Welcome to Bowen Hooks API 🔥',
-    version: process.env.API_VERSION,
-    docs: `/api/${process.env.API_VERSION}/docs`,
-    health: '/health'
+    status: 'success',
+    message: 'Bowen Hooks API is running!',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV
   });
 });
 
-// 404 Handler
-app.all('*', (req: Request, res: Response) => {
+// API welcome route
+app.get('/api/v1', (req: express.Request, res: express.Response) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to Bowen Hooks API',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/v1/auth',
+      health: '/api/health'
+    }
+  });
+});
+
+// 404 handler
+app.use('*', (req: express.Request, res: express.Response) => {
   res.status(404).json({
     status: 'error',
-    message: `Route ${req.originalUrl} not found`
+    message: 'Route not found'
   });
 });
 
-// Global Error Handler
-app.use(errorHandler);
+// Global error handler
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', error);
+  
+  // Default error
+  let statusCode = error.statusCode || 500;
+  let message = error.message || 'Internal server error';
+
+  // Handle specific error types
+  if (error.name === 'ValidationError') {
+    statusCode = 400;
+    message = 'Validation failed';
+  } else if (error.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Invalid token';
+  } else if (error.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Token expired';
+  }
+
+  res.status(statusCode).json({
+    status: 'error',
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+});
 
 export default app;

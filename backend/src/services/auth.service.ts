@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import User, { UserRole } from '../models/User.model';
 import Profile from '../models/Profile.model';
 import { redisHelpers } from '../config/redis.config';
@@ -29,9 +30,8 @@ class AuthService {
       payload,
       process.env.JWT_SECRET!,
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-        algorithm: 'HS256'
-      }
+        expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+      } as jwt.SignOptions
     );
   }
 
@@ -47,9 +47,8 @@ class AuthService {
       payload,
       process.env.JWT_REFRESH_SECRET!,
       {
-        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-        algorithm: 'HS256'
-      }
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d'
+      } as jwt.SignOptions
     );
   }
 
@@ -93,7 +92,7 @@ class AuthService {
     try {
       // Validate university email
       const emailDomain = userData.email.split('@')[1];
-      const allowedDomains = process.env.UNIVERSITY_EMAIL_DOMAINS?.split(',') || ['@bowenuniversity.edu.ng'];
+      const allowedDomains = process.env.UNIVERSITY_EMAIL_DOMAINS?.split(',') || ['bowenuniversity.edu.ng'];
       
       const isValidDomain = allowedDomains.some(domain => 
         emailDomain === domain.replace('@', '')
@@ -119,10 +118,14 @@ class AuthService {
       const verificationToken = crypto.randomBytes(32).toString('hex');
       const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-      // Create user
+      // Hash password manually to ensure it works with the beforeCreate hook
+      const saltRounds = 10;
+      const password_hash = await bcrypt.hash(userData.password, saltRounds);
+
+      // Create user with manually hashed password
       const user = await User.create({
         email: userData.email,
-        password: userData.password, // Will be hashed by beforeCreate hook
+        password_hash: password_hash, // Set hashed password directly
         verification_token: verificationToken,
         verification_token_expires: verificationExpires
       });
@@ -176,7 +179,7 @@ class AuthService {
         throw new Error('Account is temporarily locked due to multiple failed login attempts');
       }
 
-      // Verify password
+      // Verify password using the user model's method
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
         await user.incrementFailedLogins();
@@ -202,13 +205,13 @@ class AuthService {
       // Store user online status in Redis
       await redisHelpers.setEx(
         `user:online:${user.id}`,
-        { status: 'online', lastSeen: new Date().toISOString() },
+        JSON.stringify({ status: 'online', lastSeen: new Date().toISOString() }),
         60 * 60 // 1 hour
       );
 
       logger.info(`User logged in: ${user.email}`);
 
-      return { user, profile: user.profile, tokens };
+      return { user, profile: user.profile!, tokens };
     } catch (error: any) {
       logger.error('Login error:', error);
       throw error;
@@ -259,7 +262,7 @@ class AuthService {
       // Update online status
       await redisHelpers.setEx(
         `user:online:${userId}`,
-        { status: 'offline', lastSeen: new Date().toISOString() },
+        JSON.stringify({ status: 'offline', lastSeen: new Date().toISOString() }),
         60 * 60 // 1 hour
       );
 
@@ -340,7 +343,11 @@ class AuthService {
         throw new Error('Password reset token has expired');
       }
 
-      user.password = newPassword; // Will be hashed by beforeUpdate hook
+      // Hash the new password manually
+      const saltRounds = 10;
+      const password_hash = await bcrypt.hash(newPassword, saltRounds);
+
+      user.password_hash = password_hash;
       user.password_reset_token = undefined;
       user.password_reset_expires = undefined;
       user.failed_login_attempts = 0;
