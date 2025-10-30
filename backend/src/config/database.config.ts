@@ -30,13 +30,36 @@ import LoginStreak from '../models/LoginStreak.model';
 import Settings from '../models/Settings.model';
 import Like from '../models/Like.model';
 
+// Use DATABASE_URL from Render, fallback to individual env vars for local development
+const databaseConfig = process.env.DATABASE_URL 
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      dialect: 'postgres' as const,
+      protocol: 'postgres',
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false
+        }
+      }
+    }
+  : {
+      database: process.env.DB_NAME || 'bowen_hooks_db',
+      username: process.env.DB_USER || 'bowen_user',
+      password: process.env.DB_PASS || 'bowen123',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+      dialect: 'postgres' as const,
+      dialectOptions: {
+        ssl: process.env.NODE_ENV === 'production' ? {
+          require: true,
+          rejectUnauthorized: false
+        } : false
+      }
+    };
+
 const sequelize = new Sequelize({
-  database: process.env.DB_NAME || 'bowen_hooks_db',
-  username: process.env.DB_USER || 'bowen_user',
-  password: process.env.DB_PASS || 'bowen123',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  dialect: 'postgres',
+  ...databaseConfig,
   models: [
     User, Profile, Photo, Match, Message, BombMessage, VoiceNote,
     Location, HotZone, SpotDrop, VibeStatus, Event, EventAttendee,
@@ -45,7 +68,7 @@ const sequelize = new Sequelize({
     ChallengeVote, TimeCapsule, Block, Report, Notification,
     LoginStreak, Settings, Like
   ],
-  logging: console.log,
+  logging: process.env.NODE_ENV === 'development' ? console.log : false,
   pool: {
     max: 20,
     min: 0,
